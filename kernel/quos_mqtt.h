@@ -40,12 +40,13 @@ qbool Quos_mqttInit(void **chlFdPoint,
                     const char *password,
                     quint16_t keepAlive,
                     quint8_t topicCount,
-                    MQTTString *topic,
+                    char *topicString[],
                     const int *requestedQoSs,
                     MqttEventCb_f eventCB,
                     MqttpublishRecv_f pubRecv);
 void Quos_mqttDeinit(void *chlFd);
-qint32_t Quos_mqttPublishSend(const void *chlFd, char *topicString, const void *param, qint32_t qos, void *buf, quint16_t bufLen, socketRecvNodeCb_f recvCB);
+
+qint32_t Quos_mqttPublish(const void *chlFd, char *topicString, const void *param, qint32_t qos, void *buf, quint16_t bufLen, socketRecvNodeCb_f recvCB, qbool isAck);
 qbool Quos_mqttPublishReslover(quint8_t *srcData, quint32_t srcLen, MQTTString *topicName, quint8_t **payload, int *payloadlen);
 #endif
 #endif

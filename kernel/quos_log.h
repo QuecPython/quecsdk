@@ -16,31 +16,35 @@ extern "C"
 #define LL_DUMP (0X01) /* dump数据，仅用于Quos_logHexDump打印 */
 
 #ifndef QUOS_LOGL
-#define QUOS_LOGL LL_DBG
+#define QUOS_LOGL LL_ERR
 #endif
 
-#define Quos_logPrintf(TYPE, LEVEL, format, ...)                                                                          \
-	if (LEVEL >= TYPE && LEVEL >= QUOS_LOGL)                                                                              \
-	{                                                                                                                     \
-		HAL_LOCK(lockLogId);                                                                                              \
-		HAL_PRINTF("%s<%s\t> %s[%d] " format "\r\n", Qhal_logHeadString(), #TYPE, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-		HAL_UNLOCK(lockLogId);                                                                                            \
-	}
+#define Quos_logPrintf(TYPE, LEVEL, format, ...)                                                                               \
+	do                                                                                                                         \
+	{                                                                                                                          \
+		if (LEVEL >= TYPE && LEVEL >= QUOS_LOGL)                                                                               \
+		{                                                                                                                      \
+			HAL_LOCK(lockLogId);                                                                                               \
+			HAL_PRINTF("%s<%-12s> %s[%d] " format "\r\n", Qhal_logHeadString(), #TYPE, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
+			HAL_UNLOCK(lockLogId);                                                                                             \
+		}                                                                                                                      \
+	} while (0)
 
-#if (SDK_ENABLE_LOGDUMP ==1 )
-#define Quos_logHexDump(TYPE, LEVEL, HEAD, DAT, DATLEN)                                                  \
-	if (LEVEL >= TYPE && LEVEL >= QUOS_LOGL)                                                             \
-	{                                                                                                    \
-		HAL_LOCK(lockLogId);                                                                             \
-		HAL_PRINTF("%s<%s\t> %s[%d] %s\r\n", Qhal_logHeadString(), #TYPE, __FUNCTION__, __LINE__, HEAD); \
-		HAL_PRINTF("*************************** %04d **************************", (quint16_t)(DATLEN));   \
-		Quos_logHexDumpData(DAT, DATLEN);                                                                \
-		HAL_UNLOCK(lockLogId);                                                                           \
-	}
-	void Quos_logHexDumpData(void *dat, quint16_t len);
-#else
-	#define Quos_logHexDump(TYPE, LEVEL, HEAD, DAT, DATLEN)
-#endif
+#define Quos_logHexDump(TYPE, LEVEL, HEAD, DAT, DATLEN)                                                       \
+	do                                                                                                        \
+	{                                                                                                         \
+		if (LEVEL >= TYPE && LEVEL >= QUOS_LOGL)                                                              \
+		{                                                                                                     \
+			HAL_LOCK(lockLogId);                                                                              \
+			HAL_PRINTF("%s<%-12s> %s[%d] %s\r\n", Qhal_logHeadString(), #TYPE, __FUNCTION__, __LINE__, HEAD); \
+			HAL_PRINTF("*************************** %04d **************************", (quint16_t)(DATLEN));   \
+			Quos_logHexDumpData(DAT, DATLEN);                                                                 \
+			HAL_UNLOCK(lockLogId);                                                                            \
+		}                                                                                                     \
+	} while (0)
+
+	void Quos_logHexDumpData(const void *dat, quint16_t len);
+
 	HAL_LOCK_DEF(extern, lockLogId)
 	extern char *Qhal_logHeadString(void);
 #ifdef __cplusplus

@@ -190,7 +190,7 @@ static void qhal_SockTcpRecvTask(void *arg)
             bufLen = read(sockFd, tcp_buf, sizeof(tcp_buf));
             if (bufLen > 0)
             {
-                Quos_socketIORx(sockFd, SOCKET_TYPE_TCP_CLI, NULL, tcp_buf, bufLen);
+                Quos_socketIORx(sockFd, SOCKET_TYPE_TCP_CLI, NULL, 0, tcp_buf, bufLen);
             }
             else
             {
@@ -199,7 +199,7 @@ static void qhal_SockTcpRecvTask(void *arg)
         }
     }
     Quos_logPrintf(HAL_SOCK, LL_DBG, "sockFd:" PRINTF_FD " len:%d result %d error:%d", sockFd, (int)bufLen, result, (int)errno);
-    Quos_socketIORx(sockFd, SOCKET_TYPE_TCP_CLI, NULL, NULL, 0);
+    Quos_socketIORx(sockFd, SOCKET_TYPE_TCP_CLI, NULL, 0, NULL, 0);
 	Helios_Thread_Delete(Helios_Thread_GetID());
 }
 
@@ -309,7 +309,7 @@ pointer_t FUNCTION_ATTR_ROM Qhal_tcpClientInit(quint8_t *type, const char *hostn
 				flag = fcntl(sockFd, F_GETFL, 0);             //»ñÈ¡ÎÄ¼þµÄflagsÖµ¡£
 				fcntl(sockFd, F_SETFL, flag | ~O_NONBLOCK);   //ÉèÖÃ³É×èÈûÄ£Ê½£»
 				lwip_freeaddrinfo(dns);
-				if(0 >= Helios_Thread_Create(&TcpRecvTask))
+				if(0 == Helios_Thread_Create(&TcpRecvTask))
 				{
 					close(sockFd);
 					return SOCKET_FD_INVALID;
@@ -345,7 +345,7 @@ static void qhal_SockTcpTlsRecvTask(void *arg)
         int len = mbedtls_ssl_read(&sockSslCtx->ssl_ctx, buf, sizeof(buf));
         if (len > 0)
         {
-            Quos_socketIORx((pointer_t)sockSslCtx, SOCKET_TYPE_TCP_SSL_CLI, NULL, buf, len);
+            Quos_socketIORx((pointer_t)sockSslCtx, SOCKET_TYPE_TCP_SSL_CLI, NULL, 0, buf, len);
         }
         else if (MBEDTLS_ERR_SSL_WANT_READ != len && MBEDTLS_ERR_SSL_WANT_WRITE != len)
         {
@@ -354,7 +354,7 @@ static void qhal_SockTcpTlsRecvTask(void *arg)
     }
     
     Quos_logPrintf(HAL_TCP, LL_INFO,"tcp q");
-    Quos_socketIORx((pointer_t)sockSslCtx, SOCKET_TYPE_TCP_SSL_CLI, NULL, NULL, 0);
+    Quos_socketIORx((pointer_t)sockSslCtx, SOCKET_TYPE_TCP_SSL_CLI, NULL, 0, NULL, 0);
     HAL_FREE(sockSslCtx);
 	Helios_Thread_Delete(Helios_Thread_GetID());
 }
@@ -470,7 +470,7 @@ pointer_t FUNCTION_ATTR_ROM Qhal_tcpSslClientInit(quint8_t *type, const char *ho
         TcpTlsRecvTask.entry = qhal_SockTcpTlsRecvTask;
         TcpTlsRecvTask.priority = QHAL_APP_TASK_PRIORITY+2;
         TcpTlsRecvTask.stack_size = 1024*10;
-        if(0 >= Helios_Thread_Create(&TcpTlsRecvTask))
+        if(0 == Helios_Thread_Create(&TcpTlsRecvTask))
         {
             Quos_logPrintf(HAL_TLS, LL_ERR, "pthread fail");
             goto exit;
@@ -508,3 +508,30 @@ pointer_t FUNCTION_ATTR_ROM Qhal_udpSslInit(quint8_t *type, quint16_t l_port, co
     UNUSED(r_port);
     return SOCKET_FD_INVALID;
 }
+
+/**************************************************************************
+** ï¿½ï¿½ï¿½ï¿½	@brief : ï¿½ï¿½ï¿½ï¿½URLï¿½ï¿½ï¿½ï¿½ÎªIP
+** ï¿½ï¿½ï¿½ï¿½	@param : hostname: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                 retAddrï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Äµï¿½ï¿½Ê½IPï¿½Ð±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½ï¿½È²ï¿½ï¿½ï¿½ï¿½ï¿½46
+                 addrMaxï¿½ï¿½ï¿½ï¿½ï¿½É½ï¿½ï¿½Üµï¿½IPï¿½ï¿½ï¿½ï¿½
+** ï¿½ï¿½ï¿½	@retval: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½Ü½ï¿½ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½ï¿½ï¿½
+***************************************************************************/
+quint32_t FUNCTION_ATTR_ROM Qhal_dns2IPGet(const char *hostname, quint8_t **retAddr, quint32_t addrMax)
+{
+    struct hostent *host = NULL;
+    if (NULL == (host = gethostbyname(hostname)))
+    {
+        return 0;
+    }
+    quint32_t i;
+    for (i = 0; i < addrMax; i++)
+    {
+        if (NULL == host->h_addr_list[i])
+        {
+            break;
+        }
+        HAL_STRCPY(retAddr[i], inet_ntoa(*(struct in_addr *)host->h_addr_list[i]));
+    }
+    return i;
+}
+

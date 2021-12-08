@@ -24,4 +24,5 @@
 
 void Quos_kernelInit(void);
 quint32_t Quos_kernelTask(void);
+void Quos_kernelResume(void);
 #endif

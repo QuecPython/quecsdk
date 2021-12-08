@@ -6,7 +6,6 @@ extern "C"
 {
 #endif
 
-#define QIOT_LOC_SUPPORT_NONE "NONE"
 #define QIOT_LOC_SUPPORT_AUTO "AUTO"
 #define QIOT_LOC_SUPPORT_LBS "LBS"
     typedef struct

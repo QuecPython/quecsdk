@@ -23,11 +23,8 @@
 #ifndef cJSON__h
 #define cJSON__h
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 #include "quos_config.h"
+#if (SDK_ENABLE_JSON ==1 )
 /* cJSON Types: */
 #define QUOS_cJSON_Invalid (0)
 #define QUOS_cJSON_False  (1 << 0)
@@ -212,9 +209,6 @@ char* cJSON_SetValuestring(cJSON *object, const char *valuestring);
 
 /* Macro for iterating over an array or object */
 #define QUOS_cJSON_ArrayForEach(element, array) for(element = (array != NULL) ? (array)->child : NULL; element != NULL; element = element->next)
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

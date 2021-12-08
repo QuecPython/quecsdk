@@ -21,6 +21,7 @@ typedef enum
 typedef enum
 {
 #define COAP_HEAD_CODE(X, Y) (((X) << 5) + Y)
+    COAP_HCODE_EMPTY = COAP_HEAD_CODE(0, 0),
     COAP_HCODE_GET = COAP_HEAD_CODE(0, 1),
     COAP_HCODE_POST = COAP_HEAD_CODE(0, 2),
     COAP_HCODE_PUT = COAP_HEAD_CODE(0, 3),
@@ -50,33 +51,34 @@ typedef enum
     COAP_HCODE_GATEWAY_TIMEOUT_504 = COAP_HEAD_CODE(5, 4),        /* GATEWAY_TIMEOUT */
     COAP_HCODE_PROXYING_NOT_SUPPORTED_505 = COAP_HEAD_CODE(5, 5), /* PROXYING_NOT_SUPPORTED */
 } coapHeadCode_t;
-#define COAP_HEAD_CODE_STRING(X)                                                                                                            \
-    (                                                                                                                                       \
-        (X == COAP_HCODE_GET) ? "COAP_HCODE_GET" : (X == COAP_HCODE_POST)                       ? "COAP_HCODE_POST"                         \
-                                               : (X == COAP_HCODE_PUT)                          ? "COAP_HCODE_PUT"                          \
-                                               : (X == COAP_HCODE_DELETE)                       ? "COAP_HCODE_DELETE"                       \
-                                               : (X == COAP_HCODE_CREATED_201)                  ? "COAP_HCODE_CREATED_201"                  \
-                                               : (X == COAP_HCODE_DELETED_202)                  ? "COAP_HCODE_DELETED_202"                  \
-                                               : (X == COAP_HCODE_VALID_203)                    ? "COAP_HCODE_VALID_203"                    \
-                                               : (X == COAP_HCODE_CHANGED_204)                  ? "COAP_HCODE_CHANGED_204"                  \
-                                               : (X == COAP_HCODE_CONTENT_205)                  ? "COAP_HCODE_CONTENT_205"                  \
-                                               : (X == COAP_HCODE_BAD_REQUEST_400)              ? "COAP_HCODE_BAD_REQUEST_400"              \
-                                               : (X == COAP_HCODE_UNAUTHORIZED_401)             ? "COAP_HCODE_UNAUTHORIZED_401"             \
-                                               : (X == COAP_HCODE_BAD_OPTION_402)               ? "COAP_HCODE_BAD_OPTION_402"               \
-                                               : (X == COAP_HCODE_FORBIDDEN_403)                ? "COAP_HCODE_FORBIDDEN_403"                \
-                                               : (X == COAP_HCODE_NOT_FOUND_404)                ? "COAP_HCODE_NOT_FOUND_404"                \
-                                               : (X == COAP_HCODE_METHOD_NOT_ALLOWED_405)       ? "COAP_HCODE_METHOD_NOT_ALLOWED_405"       \
-                                               : (X == COAP_HCODE_NOT_ACCEPTABLE_406)           ? "COAP_HCODE_NOT_ACCEPTABLE_406"           \
-                                               : (X == COAP_HCODE_PRECONDITION_FAILED_412)      ? "COAP_HCODE_PRECONDITION_FAILED_412"      \
-                                               : (X == COAP_HCODE_REQUEST_ENTITY_TOO_LARGE_413) ? "COAP_HCODE_REQUEST_ENTITY_TOO_LARGE_413" \
-                                               : (X == COAP_HCODE_UNSUPPORTED_MEDIA_TYPE_415)   ? "COAP_HCODE_UNSUPPORTED_MEDIA_TYPE_415"   \
-                                               : (X == COAP_HCODE_INTERNAL_SERVER_ERROR_500)    ? "COAP_HCODE_INTERNAL_SERVER_ERROR_500"    \
-                                               : (X == COAP_HCODE_NOT_IMPLEMENTED_501)          ? "COAP_HCODE_NOT_IMPLEMENTED_501"          \
-                                               : (X == COAP_HCODE_BAD_GATEWAY_502)              ? "COAP_HCODE_BAD_GATEWAY_502"              \
-                                               : (X == COAP_HCODE_SERVICE_UNAVAILABLE_503)      ? "COAP_HCODE_SERVICE_UNAVAILABLE_503"      \
-                                               : (X == COAP_HCODE_GATEWAY_TIMEOUT_504)          ? "COAP_HCODE_GATEWAY_TIMEOUT_504"          \
-                                               : (X == COAP_HCODE_PROXYING_NOT_SUPPORTED_505)   ? "COAP_HCODE_PROXYING_NOT_SUPPORTED_505"   \
-                                                                                                : "Unknown")
+#define COAP_HEAD_CODE_STRING(X)                                                                                                                \
+    (                                                                                                                                           \
+        (X == COAP_HCODE_EMPTY) ? "COAP_HCODE_EMPTY" : (X == COAP_HCODE_GET)                        ? "COAP_HCODE_GET"                          \
+                                                   : (X == COAP_HCODE_POST)                         ? "COAP_HCODE_POST"                         \
+                                                   : (X == COAP_HCODE_PUT)                          ? "COAP_HCODE_PUT"                          \
+                                                   : (X == COAP_HCODE_DELETE)                       ? "COAP_HCODE_DELETE"                       \
+                                                   : (X == COAP_HCODE_CREATED_201)                  ? "COAP_HCODE_CREATED_201"                  \
+                                                   : (X == COAP_HCODE_DELETED_202)                  ? "COAP_HCODE_DELETED_202"                  \
+                                                   : (X == COAP_HCODE_VALID_203)                    ? "COAP_HCODE_VALID_203"                    \
+                                                   : (X == COAP_HCODE_CHANGED_204)                  ? "COAP_HCODE_CHANGED_204"                  \
+                                                   : (X == COAP_HCODE_CONTENT_205)                  ? "COAP_HCODE_CONTENT_205"                  \
+                                                   : (X == COAP_HCODE_BAD_REQUEST_400)              ? "COAP_HCODE_BAD_REQUEST_400"              \
+                                                   : (X == COAP_HCODE_UNAUTHORIZED_401)             ? "COAP_HCODE_UNAUTHORIZED_401"             \
+                                                   : (X == COAP_HCODE_BAD_OPTION_402)               ? "COAP_HCODE_BAD_OPTION_402"               \
+                                                   : (X == COAP_HCODE_FORBIDDEN_403)                ? "COAP_HCODE_FORBIDDEN_403"                \
+                                                   : (X == COAP_HCODE_NOT_FOUND_404)                ? "COAP_HCODE_NOT_FOUND_404"                \
+                                                   : (X == COAP_HCODE_METHOD_NOT_ALLOWED_405)       ? "COAP_HCODE_METHOD_NOT_ALLOWED_405"       \
+                                                   : (X == COAP_HCODE_NOT_ACCEPTABLE_406)           ? "COAP_HCODE_NOT_ACCEPTABLE_406"           \
+                                                   : (X == COAP_HCODE_PRECONDITION_FAILED_412)      ? "COAP_HCODE_PRECONDITION_FAILED_412"      \
+                                                   : (X == COAP_HCODE_REQUEST_ENTITY_TOO_LARGE_413) ? "COAP_HCODE_REQUEST_ENTITY_TOO_LARGE_413" \
+                                                   : (X == COAP_HCODE_UNSUPPORTED_MEDIA_TYPE_415)   ? "COAP_HCODE_UNSUPPORTED_MEDIA_TYPE_415"   \
+                                                   : (X == COAP_HCODE_INTERNAL_SERVER_ERROR_500)    ? "COAP_HCODE_INTERNAL_SERVER_ERROR_500"    \
+                                                   : (X == COAP_HCODE_NOT_IMPLEMENTED_501)          ? "COAP_HCODE_NOT_IMPLEMENTED_501"          \
+                                                   : (X == COAP_HCODE_BAD_GATEWAY_502)              ? "COAP_HCODE_BAD_GATEWAY_502"              \
+                                                   : (X == COAP_HCODE_SERVICE_UNAVAILABLE_503)      ? "COAP_HCODE_SERVICE_UNAVAILABLE_503"      \
+                                                   : (X == COAP_HCODE_GATEWAY_TIMEOUT_504)          ? "COAP_HCODE_GATEWAY_TIMEOUT_504"          \
+                                                   : (X == COAP_HCODE_PROXYING_NOT_SUPPORTED_505)   ? "COAP_HCODE_PROXYING_NOT_SUPPORTED_505"   \
+                                                                                                    : "Unknown")
 /* CoAP header options */
 typedef enum
 {
@@ -173,17 +175,9 @@ typedef enum
 
 typedef struct
 {
-    TWLLHead_T head;
-    coapOptionType_t type;
-    quint16_t len;
-    quint8_t val[1];
-} coap_optionNode_t;
-
-typedef struct
-{
     quint32_t ver : 2;
     coapHeadType_t type : 2;
-    quint32_t tkl : 4;
+    quint32_t tokenLen : 4;
     coapHeadCode_t code : 8;
     quint32_t mid : 16;
 } coap_MessageHead_t;
@@ -192,25 +186,27 @@ typedef struct
 {
     coap_MessageHead_t head;
     quint8_t token[8];
-    TWLLHead_T *optionsHead;
+    void *optionsHead;
     struct
     {
         quint16_t len;
-        quint8_t *val;
+        void *val;
     } payload;
 } Coap_Message_t;
 
 typedef qbool (*coapRecvNotify_f)(void *chlFd, const Coap_Message_t *coapMsg, Coap_Message_t *retCoapMsg);
 
-quint16_t Quos_coapMessageFormat(const Coap_Message_t *coapMsg, quint8_t **buffer);
-qbool Quos_coapMessageUnformat(const quint8_t *buffer, quint16_t bufLen, Coap_Message_t *coapMsg);
-void Quos_coapHeadSet(Coap_Message_t *coapMsg, coapHeadType_t type, coapHeadCode_t code, quint16_t mid, quint32_t tkl, quint8_t *token);
-char *Quos_coapOptionGetPath(TWLLHead_T *optionsHead);
-qbool Quos_coapOptionFromPath(TWLLHead_T **optionHead, const char *path);
-qbool Quos_coapOptionSetOpaque(TWLLHead_T **optionHead, coapOptionType_t type, void *val, quint16_t valLen);
-qbool Quos_coapOptionSetNumber(TWLLHead_T **optionHead, coapOptionType_t type, quint32_t number);
+void Quos_coapHeadSet(Coap_Message_t *coapMsg, coapHeadType_t type, coapHeadCode_t code, quint16_t mid, quint32_t tokenLen, const quint8_t *token);
+char *Quos_coapOptionGetPath(const Coap_Message_t *coapMsg);
+qbool Quos_coapOptionSetPath(Coap_Message_t *coapMsg, const char *path);
+qbool Quos_coapOptionSetOpaque(Coap_Message_t *coapMsg, coapOptionType_t type, const void *val, quint16_t valLen);
+qbool Quos_coapOptionGetOpaque(Coap_Message_t *coapMsg, coapOptionType_t type, const void **val, quint16_t *valLen);
+qbool Quos_coapOptionSetNumber(Coap_Message_t *coapMsg, coapOptionType_t type, quint32_t number);
+qbool Quos_coapOptionGetNumber(Coap_Message_t *coapMsg, coapOptionType_t type, quint32_t *number);
+void Quos_coapPayloadSet(Coap_Message_t *coapMsg, const void *val, quint16_t valLen);
 void Quos_coapMessageFree(Coap_Message_t *coapMsg);
 qbool Quos_coapInit(void **chlFdPoint, const char *url, coapRecvNotify_f notifyCb);
-qbool Quos_coapMessageSend(void *chlFd, const char *path, Coap_Message_t *coapMsg, socketRecvNodeCb_f recvCB);
+qbool Quos_coapMsgSend(void *chlFd, const char *path, Coap_Message_t *coapMsg, socketRecvNodeCb_f recvCB, qbool isAck);
+
 #endif
 #endif

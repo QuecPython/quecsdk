@@ -49,6 +49,7 @@
 
 static Systick_T RtcTime = {0,0};
 HAL_LOCK_DEF(static, lockMallocId)
+//HAL_LOCK_DEF(static, lockKernelId)
 /**************************************************************************
 ** π¶ƒ‹	@brief : ø¥√≈π∑Œππ∑
 **  ‰»Î	@param :         
@@ -343,12 +344,13 @@ void  qhal_MainTask(void *argv)
         Helios_Thread_Delete(Helios_Thread_GetID());
 		return;
 	}
-    Ql_iotInit();
+    //Ql_iotInit();
+    Quos_logPrintf(HAL_DEV, LL_DBG," qhal_MainTask\r\n");
     while (1)
     {
 		quint32_t msg = 1;
 		quint32_t idletime = Quos_kernelTask();
-        Quos_logPrintf(HAL_DEV, LL_DBG,"exec:%u\r\n", idletime);
+        Quos_logPrintf(HAL_DEV, LL_DBG," idletime exec:%u\r\n", idletime);
 		if(idletime)
 		{
             Helios_MsgQ_Get(msg_quos_task, (void *)&msg, sizeof(quint32_t), idletime);
@@ -366,7 +368,7 @@ qbool FUNCTION_ATTR_ROM Qhal_quecsdk_init(void)
     qhal_main_ref.entry = qhal_MainTask;
     qhal_main_ref.priority = QHAL_APP_TASK_PRIORITY;
     qhal_main_ref.stack_size = 1024 * 64;
-    if(0 >= Helios_Thread_Create(&qhal_main_ref))
+    if(0 == Helios_Thread_Create(&qhal_main_ref))
     {
         Helios_Debug_Output("[INIT]Helios_Thread_Create fail");
         return FALSE;
@@ -381,6 +383,7 @@ qbool FUNCTION_ATTR_ROM Qhal_quecsdk_init(void)
 qbool FUNCTION_ATTR_ROM Qhal_beforeMain(void)
 {
     HAL_LOCK_INIT(lockMallocId);
+    //HAL_LOCK_INIT(lockKernelId);
 #if defined (PLAT_Unisoc)
     Quos_logPrintf(HAL_DEV, LL_DBG,"********** This is PLAT_Unisoc **********");
 #elif defined (PLAT_ASR)
@@ -390,6 +393,22 @@ qbool FUNCTION_ATTR_ROM Qhal_beforeMain(void)
 #endif
     return TRUE;
 }
+
+/**************************************************************************
+** ÂäüËÉΩ	@brief : ÈÄÄÂá∫‰ªªÂä°ÊåÇËµ∑Ê®°Âºè
+** ËæìÂÖ•	@param : 
+** ËæìÂá∫	@retval: 
+***************************************************************************/
+void FUNCTION_ATTR_ROM Qhal_KernelResume(void)
+{
+    quint32_t msg = 1;
+    if(msg_quos_task)
+    {
+        Helios_MsgQ_Put(msg_quos_task, (void *)&msg, sizeof(quint32_t), HELIOS_NO_WAIT);       
+    }   
+    //HAL_UNLOCK(lockKernelId);
+}
+
 /**************************************************************************
 ** π¶ƒ‹	@brief : ÕÀ≥ˆµÕπ¶∫ƒƒ£ Ω
 **  ‰»Î	@param : 
