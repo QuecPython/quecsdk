@@ -8,64 +8,78 @@
 ***************************************************************************/
 #include "ql_iotAt.h"
 #include "qhal_Socket.h"
+#include "qhal_atCmd.h"
 #define APP_AT LL_DBG
 
-typedef struct __appSock
-{
-    TWLLHead_T head;
-    pointer_t sockFd;
-} appSock_T;
 
-static TWLLHead_T *appSockHead = NULL;
-#define APP_AT_SOCKET_PORT 4321
+#define APP_AT_SOCKET_PORT 39999
+#define APP_AT_RECV_MAX    5000 
 void cmdTestSocketSend(pointer_t sockFd, const quint8_t *data, quint32_t len);
 
 typedef struct
 {
     char *cmd;
-    qint32_t (*cb)(QIot_atAction_e action, char *retBuf, quint32_t retMaxLen, quint8_t count, char *arg[]);
+    void (*cb)(qhal_atcmd_t *cmd);
 } atCmdTable_t;
 
 static atCmdTable_t table[] =
     {
-        {"QIOTREG", Ql_iotAtQIOTREG},
-        {"QIOTSEND", Ql_iotAtQIOTTransTx},
-        {"QIOTRD", Ql_iotAtQIOTTransRx},
-        {"QIOTCFG", Ql_iotAtQIOTCFG},
-        {"QIOTMODELTD", Ql_iotAtQIOTModelTx},
-        {"QIOTMODELRD", Ql_iotAtQIOTModelRx},
-        {"QIOTMCUVER", Ql_iotAtQIOTMCUVER},
-        {"QIOTUPDATE", Ql_iotAtQIOTUPDATE},
-        {"QIOTINFO", Ql_iotAtQIOTINFO},
-        {"QIOTOTARD", Ql_iotAtQIOTOTARD},
-        {"QIOTSTATE", Ql_iotAtQIOTSTATE},
-        {"QIOTLOCCFG", Ql_iotAtQIOTLOCCFG},
-        {"QIOTLOCRPT", Ql_iotAtQIOTLOCRPT},
+        {"QIOTREG", Qhal_atCmdIotAtQIOTREG},
+        {"QIOTSEND", Qhal_atCmdIotAtQIOTTransTx},
+        {"QIOTRD", Qhal_atCmdIotAtQIOTTransRx},
+        {"QIOTCFG", Qhal_atCmdIotAtQIOTCFG},
+        {"QIOTMODELTD", Qhal_atCmdIotAtQIOTModelTx},
+        {"QIOTMODELRD", Qhal_atCmdIotAtQIOTModelRx},
+        {"QIOTMCUVER", Qhal_atCmdIotAtQIOTMCUVER},
+        {"QIOTUPDATE", Qhal_atCmdIotAtQIOTUPDATE},
+        {"QIOTINFO", Qhal_atCmdIotAtQIOTINFO},
+        {"QIOTOTARD", Qhal_atCmdIotAtQIOTOTARD},
+        {"QIOTSTATE", Qhal_atCmdIotAtQIOTSTATE},
+        {"QIOTLOCIN", Qhal_atCmdIotAtQIOTLOCIN},
+        {"QIOTLOCEXT", Qhal_atCmdIotAtQIOTLOCEXT},
+        {"QIOTOTAREQ", Qhal_atCmdIotAtQIOTOTARequest},
+        #ifdef QUEC_ENABLE_HTTP_OTA
+        {"QFOTAUP", Qhal_atCmdIotAtQFOTAUP},
+        {"QFOTACFG", Qhal_atCmdIotAtQFOTACFG},
+        #endif
+        #ifdef QUEC_ENABLE_GATEWAY
+		{"QIOTSUBCONN", Qhal_atCmdIotAtQIOTSUBCONN},
+        {"QIOTSUBDISCONN", Qhal_atCmdIotAtQIOTSUBDISCONN},
+        {"QIOTSUBRD", Qhal_atCmdIotAtQIOTSUBRD},
+        {"QIOTSUBSEND", Qhal_atCmdIotAtQIOTSUBSEND},
+        {"QIOTSUBTSLRD", Qhal_atCmdIotAtQIOTSUBTSLRD},
+        {"QIOTSUBTSLTD", Qhal_atCmdIotAtQIOTSUBTSLTD},
+//        {"QIOTSUBINFO", Qhal_atCmdIotAtQIOTSUBINFO},
+        {"QIOTSUBHTB", Qhal_atCmdIotAtQIOTSUBHTB},
+        #endif
         {NULL, NULL}};
+
+#define AT_SOCKECT_MASK "AT"
 /**************************************************************************
 ** 功能	@brief : AT透传模式
 ** 输入	@param : 
 ** 输出	@retval: 
 ***************************************************************************/
-static char *cmdTestPassMode(pointer_t sockFd, int dataLen)
+static quint32_t cmdTestPassMode(pointer_t sockFd, int dataLen,char **buf)
 {
     int ret;
     int bufLen = 0;
-    char *buf = malloc(dataLen);
-    if(NULL == buf)
+    qint32_t timeoutSum = 10;
+    *buf = HAL_MALLOC(dataLen);
+    if(NULL == *buf)
     {
         Quos_logPrintf(APP_AT, LL_ERR, "malloc fail");
-        return NULL;
+        return 0;
     }
     do
     {
         if(SOCKET_FD_INVALID == sockFd)
         {
-            ret = read(STDIN_FILENO, buf+bufLen, dataLen-bufLen);
+            ret = read(STDIN_FILENO, *buf+bufLen, dataLen-bufLen);
         }
         else
         {
-            ret = read(sockFd, buf+bufLen, dataLen-bufLen);
+            ret = read(sockFd, *buf+bufLen, dataLen-bufLen);
         }
         if(ret < 0)
         {
@@ -73,29 +87,105 @@ static char *cmdTestPassMode(pointer_t sockFd, int dataLen)
             break;
         }
         bufLen += ret;
-        if(bufLen == dataLen)
+        if(bufLen >= dataLen)
         {
-            return buf;
+            break;
+        }
+        sleep(1);
+        if(timeoutSum > 0)
+        {
+            timeoutSum--;
+        }
+        else
+        {
+            return 0;
         }
     } while (1);
-    return NULL;
+    return bufLen;
 }
+
+/**************************************************************************
+** 功能	@brief : AT命令参数提取
+** 输入	@param : 
+** 输出	@retval: 
+***************************************************************************/
+void atCmd_argExtract(char *src, qhal_atcmd_t *cmd)
+{
+    char *args[QHAL_AT_PARAM_MAX];
+    quint32_t argNum = 0; 
+    char *p = src;
+    do
+    {
+        qbool isStr = FALSE;
+        args[argNum] = p;
+        if(*p == '"')
+        {
+            while ((p = HAL_STRSTR(p+1,"\"")))
+            {
+                p++;
+                if(*p == '\0' || *p == ',')
+                {
+                    isStr = TRUE;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            p = HAL_STRSTR(p,",");
+        }
+        if(p && *p == ',')
+        {
+            *p++ = '\0';
+        }
+        if(isStr)
+        {
+            cmd->params[argNum].type = QHAL_AT_TYPE_STRING;
+            cmd->params[argNum].val = (quint8_t *)Quos_stringRemoveMarks(args[argNum]);
+            cmd->params[argNum].len = HAL_STRLEN(args[argNum]);
+        }
+        else
+        {
+            if(Quos_strIsUInt(args[argNum], HAL_STRLEN(args[argNum]),NULL) == TRUE)
+            {
+                cmd->params[argNum].type = QHAL_AT_TYPE_INT;
+                cmd->params[argNum].val = (quint8_t *)args[argNum];
+            }
+            else
+            {
+                cmd->params[argNum].type = QHAL_AT_TYPE_RAW;
+                cmd->params[argNum].val = (quint8_t *)args[argNum];
+                cmd->params[argNum].len = HAL_STRLEN(args[argNum]);
+            }
+        }
+        argNum++;
+    }while (argNum < QHAL_AT_PARAM_MAX && p && *p != '\0');
+    cmd->param_count = argNum;
+}
+
 /**************************************************************************
 ** 功能	@brief : AT命令解析
 ** 输入	@param : 
 ** 输出	@retval: 
 ***************************************************************************/
-static void atCmdAnalyze(pointer_t sockFd, char *buf)
+static void atCmdAnalyze(pointer_t sockFd, char *buf,int len)
 {
 #define AT_HEAD "AT+"
-    if (0 != strncasecmp(buf, AT_HEAD, HAL_STRLEN(AT_HEAD)) || '\n' != buf[HAL_STRLEN(buf) - 1])
+    if (0 != HAL_STRNCASECMP(buf, AT_HEAD, HAL_STRLEN(AT_HEAD)))
     {
         return;
     }
-    buf[HAL_STRLEN(buf) - 1] = 0;
-    if (buf[HAL_STRLEN(buf) - 1] == '\r')
+    else if('\n' != buf[len - 1])
     {
-        buf[HAL_STRLEN(buf) - 1] = 0;
+        cmdTestSocketSend(sockFd, (const quint8_t *)"ERROR\r\n", HAL_STRLEN("ERROR\r\n"));
+        return;
+    }
+    buf[len - 1] = 0;
+    len--;
+    if (buf[len - 1] == '\r')
+    {
+        buf[len - 1] = 0;
+        len--;
     }
     buf += HAL_STRLEN(AT_HEAD);
     quint32_t i = 0;
@@ -107,30 +197,21 @@ static void atCmdAnalyze(pointer_t sockFd, char *buf)
             continue;
         }
         buf += HAL_STRLEN(table[i].cmd);
-        char retBuf[QIOT_AT_BUFFER_MAX] = {0};
-        char *words[200];
-        quint32_t size = 0;
-        QIot_atAction_e action = QIOT_AT_ACTION_UNKOWN;
+        qhal_atcmd_t cmd;
+        cmd.param_count = 0;
+        cmd.sockFd = sockFd;
+        cmd.action = QIOT_AT_ACTION_UNKOWN;
         if ('=' == buf[0])
         {
             if ('?' == buf[1] && '\0' == buf[2])
             {
                 Quos_logPrintf(APP_AT, LL_DBG, "AT test");
-                action = QIOT_AT_ACTION_TEST;
+                cmd.action = QIOT_AT_ACTION_TEST;
             }
             else if ('\0' != buf[1])
             {
-                quint32_t i;
-                size = Quos_stringSplit(buf + 1, words, 200, ",", TRUE);
-                for (i = 0; i < size; i++)
-                {
-                    while (' ' == words[i][0])
-                    {
-                        words[i] = &words[i][1];
-                    }
-                    Quos_stringRemoveMarks(words[i]);
-                }
-                action = QIOT_AT_ACTION_WRITE;
+                atCmd_argExtract(buf + 1, &cmd);
+                cmd.action = QIOT_AT_ACTION_WRITE;
             }
             else
             {
@@ -140,177 +221,151 @@ static void atCmdAnalyze(pointer_t sockFd, char *buf)
         else if ('?' == buf[0] && '\0' == buf[1])
         {
             Quos_logPrintf(APP_AT, LL_DBG, "AT read");
-            action = QIOT_AT_ACTION_READ;
+            cmd.action = QIOT_AT_ACTION_READ;
         }
         else if ('\0' == buf[0])
         {
-            action = QIOT_AT_ACTION_EXEC;
+            cmd.action = QIOT_AT_ACTION_EXEC;
         }
-
-        if (QIOT_AT_ACTION_UNKOWN != action)
+        if (QIOT_AT_ACTION_UNKOWN != cmd.action)
         {
-            qint32_t ret;
             char *passData = NULL;
-            if((HAL_STRCMP("QIOTSEND",table[i].cmd) == 0 && 2 == size) ||
-               (HAL_STRCMP("QIOTMODELTD",table[i].cmd) == 0 && (2 == size || 3 == size)))
+            uint32_t length = 0;
+            if (((HAL_STRCMP("QIOTSEND",table[i].cmd) == 0) && 2 == cmd.param_count) ||
+                ((HAL_STRCMP("QIOTMODELTD",table[i].cmd) == 0) && (2 == cmd.param_count ||(3 == cmd.param_count && cmd.params[2].type == QHAL_AT_TYPE_INT))))
             {
-                Quos_logPrintf(APP_AT, LL_ERR, "need wait data,len:%d",atoi(words[1]));
+                length = HAL_ATOI((const char *)cmd.params[1].val);
+            }
+#ifdef QUEC_ENABLE_GATEWAY
+            else if ((HAL_STRCMP("QIOTSUBTSLTD",table[i].cmd) == 0 && ((4 == cmd.param_count && cmd.params[3].type == QHAL_AT_TYPE_INT) || 3 == cmd.param_count)) ||
+                (HAL_STRCMP("QIOTSUBSEND",table[i].cmd) == 0 && 3 == cmd.param_count))
+            {
+                length = HAL_ATOI((const char *)cmd.params[2].val);
+            }
+#endif
+            if (0 != length)
+            {
+                Quos_logPrintf(APP_AT, LL_ERR, "need wait data,len:%d",length);
                 cmdTestSocketSend(sockFd, (const quint8_t *)"> ", HAL_STRLEN("> "));
-                passData = cmdTestPassMode(sockFd,atoi(words[1]));
-                if(passData)
+                quint32_t passDataLen = cmdTestPassMode(sockFd,(int)length,&passData);
+                if(passDataLen)
                 {
-                    words[size++] = passData;
+                    cmd.params[cmd.param_count].type = QHAL_AT_TYPE_PASS;
+                    cmd.params[cmd.param_count].val = (quint8_t*)passData;
+                    cmd.params[cmd.param_count].len = passDataLen;
+                    cmd.param_count++;
+                }
+                else
+                {
+                    cmdTestSocketSend(sockFd, (const quint8_t *)"ERROR\r\n", HAL_STRLEN("ERROR\r\n"));
+                    if(passData)
+                    {
+                        HAL_FREE(passData);
+                    }
+                    i++;
+                    continue;
                 }
             }
-            ret = table[i].cb(action, retBuf, sizeof(retBuf), size, words);
-            if (ret == 0)
-            {
-                cmdTestSocketSend(sockFd, (const quint8_t *)"OK\r\n", HAL_STRLEN("OK\r\n"));
-            }
-            else if (ret < 0)
-            {
-                cmdTestSocketSend(sockFd, (const quint8_t *)"ERROR\r\n", HAL_STRLEN("ERROR\r\n"));
-            }
-            else
-            {
-                cmdTestSocketSend(sockFd, (const quint8_t *)retBuf, ret);
-                cmdTestSocketSend(sockFd, (const quint8_t *)"\r\n\r\nOK\r\n", HAL_STRLEN("\r\n\r\nOK\r\n"));
-            }
+            table[i].cb(&cmd);
             if(passData)
             {
-                free(passData);
+                HAL_FREE(passData);
             }
+        }
+        else
+        {
+            cmdTestSocketSend(sockFd, (const quint8_t *)"ERROR\r\n", HAL_STRLEN("ERROR\r\n"));
         }
         i++;
     }
 }
+
 /**************************************************************************
-** 功能	@brief : 
-** 输入	@param : 
-** 输出	@retval: 
-***************************************************************************/
-static void *cmdTestTask(void *arg)
-{
-    fd_set rset;
-    UNUSED(arg);
-    while (1)
-    {
-        qint32_t bufLen;
-        quint8_t buf[1024];
-        FD_ZERO(&rset);
-        FD_SET(STDIN_FILENO, &rset);
-        int result = select(STDIN_FILENO + 1, &rset, NULL, NULL, NULL);
-        if (result > 0 && (bufLen = read(STDIN_FILENO, buf, sizeof(buf))) > 0)
-        {
-            buf[bufLen] = 0;
-            atCmdAnalyze(SOCKET_FD_INVALID, (char *)buf);
-        }
-    }
-    return NULL;
-}
-/**************************************************************************
-** 功能	@brief : 
+** 功能	@brief : TCP客户端数据发送
 ** 输入	@param : 
 ** 输出	@retval: 
 ***************************************************************************/
 void cmdTestSocketSend(pointer_t sockFd, const quint8_t *data, quint32_t len)
 {
-    TWLLHead_T *temp, *next;
+    if(NULL == data || 0 == len)
+    {
+        return ;
+    }
     Quos_logPrintf(APP_AT, LL_DBG, "data[%d]:\n%s", len, data);
     if (SOCKET_FD_INVALID == sockFd)
     {
-        TWLIST_FOR_DATA(appSockHead, temp, next)
+        void *chlList[100];
+        quint32_t count = Quos_socketGetChlFdList(SOCKET_TYPE_TCP_CLI, (void*)AT_SOCKECT_MASK, chlList,sizeof(chlList)/sizeof(chlList[0]));
+        while (count--)
         {
-            appSock_T *listTemp = __GET_STRUCT_BY_ELEMENT(temp, appSock_T, head);
-            sockFd = listTemp->sockFd;
-        }
-    }
-    if(data && len)
-    {
-        send(sockFd, data, len, 0);
-    }
-}
-/**************************************************************************
-** 功能	@brief : 
-** 输入	@param : 
-** 输出	@retval: 
-***************************************************************************/
-static void *cmdTestSocketRecvTask(void *arg)
-{
-    pointer_t sockFd = (pointer_t)arg;
-    while (1)
-    {
-        fd_set rset;
-        FD_ZERO(&rset);
-        FD_SET(sockFd, &rset);
-        int result = select(sockFd + 1, &rset, NULL, NULL, NULL);
-        if (result < 0)
-        {
-            break;
-        }
-        else if (result > 0)
-        {
-            quint8_t buf[1024];
-            qint32_t bufLen = read(sockFd, buf, sizeof(buf));
-            if (bufLen > 0)
+            quint8_t *newData = HAL_MEMDUP(data, len);
+            if(newData)
             {
-                buf[bufLen] = '\0';
-                Quos_logPrintf(APP_AT, LL_DBG, "recv:%s", buf);
-                atCmdAnalyze(sockFd, (char *)buf);
-            }
-            else
-            {
-                break;
+                Quos_socketTxDisorder(chlList[count],NULL,(quint8_t*)newData, len);
             }
         }
     }
-    Quos_logPrintf(APP_AT, LL_DBG, "fd[%ld] disconnect", sockFd);
-    TWLLHead_T *temp, *next;
-    TWLIST_FOR_DATA(appSockHead, temp, next)
+    else
     {
-        appSock_T *listTemp = __GET_STRUCT_BY_ELEMENT(temp, appSock_T, head);
-        if (listTemp->sockFd == sockFd)
+        Quos_socketChlInfoNode_t *node = (Quos_socketChlInfoNode_t *)Quos_socketGetChlFd(sockFd,SOCKET_TYPE_TCP_CLI);
+        if(node)
         {
-            Quos_twllHeadDelete(&appSockHead, temp);
-            free(listTemp);
+            quint8_t *newData = HAL_MEMDUP(data, len);
+            if(newData)
+            {
+                Quos_socketTxDisorder(node,NULL,(quint8_t*)newData, len);
+            }
         }
     }
-    return NULL;
 }
+
 /**************************************************************************
-** 功能	@brief : 
+** 功能	@brief : TCP客户端数据接收
 ** 输入	@param : 
 ** 输出	@retval: 
 ***************************************************************************/
-static void *cmdTestSocketTask(void *arg)
+static qbool FUNCTION_ATTR_ROM cmdTestSocketRecv(void *chlFd, const void *peer, quint32_t peerSize, Quos_socketRecvDataNode_t *recvData)
 {
-    quint32_t len;
-    pointer_t fd = (pointer_t)arg;
-    Quos_logPrintf(APP_AT, LL_DBG, "fd[%ld]", fd);
-
-    struct sockaddr_in client;
-    bzero(&client, sizeof(client));
-    len = sizeof(client);
-
-    while (1)
+    UNUSED(peer);
+    UNUSED(peerSize);
+    Quos_socketChlInfoNode_t *chlNode = (Quos_socketChlInfoNode_t *)chlFd;
+    if(NULL == recvData)
     {
-        pthread_t pthreadId;
-        pointer_t appAtFd = accept(fd, (struct sockaddr *)&client, &len);
-        if (0 != pthread_create(&pthreadId, NULL, (void *)cmdTestSocketRecvTask, (void *)(pointer_t)appAtFd))
-        {
-            close(appAtFd);
-            break;
-        }
-        appSock_T *listNew = (appSock_T *)malloc(sizeof(appSock_T));
-        listNew->sockFd = appAtFd;
-        if (listNew == NULL)
-        {
-            break;
-        }
-        Quos_twllHeadAdd(&appSockHead, &listNew->head);
+        Quos_logPrintf(APP_AT, LL_DBG,"socket disconnect");
+        return TRUE;
     }
-    return NULL;
+    Quos_logPrintf(APP_AT, LL_DBG,"recv data:%.*s",recvData->bufLen,recvData->Buf);
+    atCmdAnalyze(chlNode->sockFd, (char *)recvData->Buf,recvData->bufLen);
+    return TRUE;
 }
+
+/**************************************************************************
+** 功能	@brief : 局域网监听新的TCP客户端连接
+** 输入	@param : 
+** 输出	@retval: 
+***************************************************************************/
+static qbool FUNCTION_ATTR_ROM cmdTestClientListen(void *chlFd, const void *peer, quint32_t peerSize, Quos_socketRecvDataNode_t *recvData)
+{
+    UNUSED(chlFd);
+    UNUSED(peer);
+    UNUSED(peerSize);
+    if(NULL == recvData)
+    {
+        return FALSE;
+    }
+    Quos_socketChlInfoNode_t chlInfo;
+    HAL_MEMCPY(&chlInfo,recvData->Buf,recvData->bufLen);
+    Quos_logPrintf(APP_AT, LL_DBG,"new cliend sockFd:"PRINTF_FD,chlInfo.sockFd);
+    chlInfo.io.send = Qhal_sockWrite;
+    chlInfo.send.txCnt = 1;
+    chlInfo.send.timeout = 2000;
+    chlInfo.recvDataFunc = cmdTestSocketRecv;
+    chlInfo.io.close = Qhal_sockClose;
+    chlInfo.param = AT_SOCKECT_MASK;
+    Quos_socketChannelAdd(NULL,chlInfo);
+    return TRUE;
+}
+
 /**************************************************************************
 ** 功能	@brief : 
 ** 输入	@param : 
@@ -318,11 +373,17 @@ static void *cmdTestSocketTask(void *arg)
 ***************************************************************************/
 void CmdTestInit(void)
 {
-    pthread_t pthreadId;
-    pthread_t pthreadSocketId;
-    quint8_t sockType;
-    pointer_t fd = Qhal_tcpServerInit(&sockType, APP_AT_SOCKET_PORT, 1);
-    Quos_logPrintf(APP_AT, LL_DBG, "fd[%ld]", fd);
-    pthread_create(&pthreadSocketId, NULL, (void *)cmdTestSocketTask, (void *)fd);
-    pthread_create(&pthreadId, NULL, (void *)cmdTestTask, NULL);
+    Quos_socketChlInfoNode_t chlInfo;
+    HAL_MEMSET(&chlInfo, 0, sizeof(Quos_socketChlInfoNode_t));
+    chlInfo.sockFd = Qhal_tcpServerInit(&chlInfo.type, APP_AT_SOCKET_PORT, 100);
+    Quos_logPrintf(APP_AT, LL_DBG, "fd:" PRINTF_FD, chlInfo.sockFd);
+    if (SOCKET_FD_INVALID == chlInfo.sockFd)
+    {
+        Quos_logPrintf(APP_AT, LL_ERR, "listening port failed");
+        return;
+    }
+    chlInfo.send.txCnt = 1;
+    chlInfo.send.timeout = 2000;
+    chlInfo.recvDataFunc = cmdTestClientListen;
+    Quos_socketChannelAdd(NULL, chlInfo);
 }

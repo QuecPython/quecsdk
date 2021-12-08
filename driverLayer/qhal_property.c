@@ -217,7 +217,7 @@ quint32_t Qhal_propertyLocSupList(char **words, quint32_t maxSize)
 {
     UNUSED(maxSize);
     quint32_t i = 0;
-    words[i++] = QIOT_LOC_SUPPORT_NONE;
+    words[i++] = "NONE";
     // words[i++] = QIOT_LOC_SUPPORT_AUTO;
     words[i++] = QIOT_LOC_SUPPORT_LBS;
     return i;

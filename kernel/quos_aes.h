@@ -40,7 +40,7 @@ void Quos_aesEcbDecrypt(AES_ctx_t *ctx, const quint8_t *buf, quint32_t length);
 /* Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for padding scheme */
 /* NOTES: you need to set IV in ctx via Quos_aesInitCtxIv() or Quos_aesCtxSetIv() */
 /*        no IV should ever be reused with the same key */
-void Quos_aesCbcEncrypt(AES_ctx_t *ctx, void *buf, quint32_t length);
+quint32_t Quos_aesCbcEncrypt(AES_ctx_t *ctx, void *buf, quint32_t length);
 void Quos_aesCbcDecrypt(AES_ctx_t *ctx, void *buf, quint32_t length);
 
 /* Same function for encrypting as for decrypting. */

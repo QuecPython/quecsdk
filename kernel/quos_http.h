@@ -1,7 +1,7 @@
 #ifndef __QUOS_HTTP_H__
 #define __QUOS_HTTP_H__
 #include "quos_config.h"
-#if (SDK_ENABLE_HTTP==1)
+#if (SDK_ENABLE_HTTP == 1)
 #define QUOS_HTTP_MULTIPART_BOUNDARY              "450d2e46-73fc11eaad264b91df3ae910"
 #define QUOS_HTTP_MULTIPART_NODE_START            "--" QUOS_HTTP_MULTIPART_BOUNDARY "\r\n"
 #define QUOS_HTTP_MULTIPART_NODE_END              "\r\n--" QUOS_HTTP_MULTIPART_BOUNDARY "--\r\n"
@@ -44,13 +44,13 @@ typedef struct
    HTTP结束后再CB一次，此时recvLen为下载到的文件大小 */
 typedef qbool (*httpEventCB_f)(qint32_t httpCode, char *retHeader, quint8_t *recvBuf, quint32_t recvLen);
 
-qbool Quos_httpRequest(const char *opt, const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const HttpReqFile_t *reqFile);
-qbool Quos_httpGetDownload(const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const char *filename, quint32_t offset);
-qbool Quos_httpPostForm(const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const char *filename, quint32_t fileSize);
+qbool Quos_httpRequest(void **httpFd, const char *opt, const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const HttpReqFile_t *reqFile);
+qbool Quos_httpGetDownload(void **httpFd, const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const char *filename, quint32_t offset);
+qbool Quos_httpPostForm(void **httpFd, const char *url, httpEventCB_f eventCB, const HttpReqData_t *reqData, const char *filename, quint32_t fileSize);
 
-#define Quos_httpGet(URL, EVENTCB, REQDATA) Quos_httpRequest("GET", URL, EVENTCB, REQDATA, NULL)
-#define Quos_httpPost(URL, EVENTCB, REQDATA) Quos_httpRequest("POST", URL, EVENTCB, REQDATA, NULL)
-#define Quos_httpPut(URL, EVENTCB, REQDATA) Quos_httpRequest("PUT", URL, EVENTCB, REQDATA, NULL)
-#define Quos_httpDelete(URL, EVENTCB, REQDATA) Quos_httpRequest("DELETE", URL, EVENTCB, REQDATA, NULL)
+#define Quos_httpGet(URL, EVENTCB, REQDATA) Quos_httpRequest(NULL, "GET", URL, EVENTCB, REQDATA, NULL)
+#define Quos_httpPost(URL, EVENTCB, REQDATA) Quos_httpRequest(NULL, "POST", URL, EVENTCB, REQDATA, NULL)
+#define Quos_httpPut(URL, EVENTCB, REQDATA) Quos_httpRequest(NULL, "PUT", URL, EVENTCB, REQDATA, NULL)
+#define Quos_httpDelete(URL, EVENTCB, REQDATA) Quos_httpRequest(NULL, "DELETE", URL, EVENTCB, REQDATA, NULL)
 #endif
 #endif

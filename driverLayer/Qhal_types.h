@@ -40,6 +40,7 @@ typedef unsigned char qbool;
 #define FUNCTION_ATTR_RAM
 
 
+#define QUEC_ENABLE_QTH_OTA 1
 #define HAL_MEMCPY(a,b,l)        memcpy((quint8_t*)(a),(quint8_t*)(b),l)
 #define HAL_MEMCMP(a,b,l)        memcmp((quint8_t*)(a),(quint8_t*)(b),l)
 #define HAL_MEMSET(a,b,l)        memset((void *)a, (int)b, (size_t)l)

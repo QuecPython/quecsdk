@@ -13,24 +13,16 @@
 #define SWT_ONE_HOUR (60 * SWT_ONE_MINUTE)
 #define SWT_ONE_DAY (24 * SWT_ONE_HOUR)
 
-typedef struct __SWTimer
-{
-	TWLLHead_T head;
-	char *name;
-	Systick_T endTime;
-	quint32_t timeout; /* 定时时长，单位ms */
-	quint32_t repeat;  /* 重复次数 */
-	void *parm;
-	void **self;
-	void (*timeoutCb)(struct __SWTimer *swTimer);
-} SWTimer_T;
-
-typedef void (*SWTimerCB)(SWTimer_T *swTimer);
-qbool Quos_swTimerStart(SWTimer_T **swTimer, char *name, quint32_t timeout, quint32_t repeat, const SWTimerCB timeoutCb, void *parm);
-void Quos_swTimerDelete(SWTimer_T *SWTimer);
-void Quos_swTimerTimeoutSet(SWTimer_T *swTimer, quint32_t timeout);
-void Quos_swTimerRepeatSet(SWTimer_T *swTimer, quint32_t repeat);
-void Quos_swTimerCBSet(SWTimer_T *swTimer, const SWTimerCB timeoutCb);
+typedef void (*SWTimerCB)(void *swTimerP);
+void Quos_swTimerInit(void);
+qbool Quos_swTimerStart(void **swTimerP, char *name, quint32_t timeout, quint32_t repeat, const SWTimerCB timeoutCb, void *parm);
+void Quos_swTimerDelete(void *SWTimerP);
+void Quos_swTimerTimeoutSet(void *swTimerP, quint32_t timeout);
+quint32_t Quos_swTimerTimeoutGet(void *swTimerP);
+void Quos_swTimerRepeatSet(void *swTimerP, quint32_t repeat);
+quint32_t Quos_swTimerRepeatGet(void *swTimerP);
+void *Quos_swTimerParmGet(void *swTimerP);
+void Quos_swTimerCBSet(void *swTimerP, const SWTimerCB timeoutCb);
 quint32_t Quos_swTimerTask(void);
 
 #endif
