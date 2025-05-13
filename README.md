@@ -1,0 +1,1 @@
+在quecsdk.mk中根据不同平台选择platform下不同平台提供的静态库
